@@ -1,0 +1,362 @@
+/* 
+ * Pinout:
+ *  d2 - 4017 reset
+ *  d3 - 4017 clock
+ *  
+ *  d5 - shift clock
+ *  d6 - shift clear
+ *  d7 - shift ser in
+ * 
+ *  d9 - blank
+ */
+
+/**
+ * 24 bits, 0-255, 8 LEDs per row
+ * 010 110 101 011 101 010 110 010
+ *
+ * OOO: Send 24 bits, row by row, for 8 Columns
+ *  Example input when using Serial Monitor: 
+ *    010 110 101 011 101 010 110 010 (enter)
+ *    010 110 101 011 101 010 110 010 (enter)
+ *    010 110 101 011 101 010 110 010 (enter)
+ *    010 110 101 011 101 010 110 010 (enter)
+ *    010 110 101 011 101 010 110 010 (enter)
+ *    010 110 101 011 101 010 110 010 (enter)
+ *    010 110 101 011 101 010 110 010 (enter)
+ *    010 110 101 011 101 010 110 010
+ *   *rolls over*
+*/
+
+// In Physical Pin Order
+/* ----- */
+const int DISPL_RST = D7;
+// Ground Pin
+const int a4017_CLK = D6;
+const int a4017_RST = D5;
+const int SHIFT_CLK = D4;
+const int SHIFT_CLR = D3;
+const int SHIFT_SER = D1;
+// Not Connected
+// Vcc
+/* ----- */
+
+// Consants
+const long shiftDelay = 10;
+
+// No idea
+int colLoad = 0;
+bool loadState = 0;
+bool loadFrame = 1;
+byte totalShifted = 0;
+byte colCount = 0;
+
+bool frameBuffer[24][8] = {
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+};
+
+byte loadBuffer[8][3];
+
+bool blank[8][24] = {
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
+
+bool white[24][8] = {
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+};
+
+bool red[24][8] = {
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+};
+
+bool green[24][8] = {
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+};
+
+bool blue[24][8] = {
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+};
+
+void setup() {
+    pinMode(SHIFT_SER, OUTPUT);
+    pinMode(SHIFT_CLR, OUTPUT);
+    pinMode(SHIFT_CLK, OUTPUT);
+    pinMode(a4017_RST, OUTPUT);
+    pinMode(a4017_CLK, OUTPUT);
+    pinMode(DISPL_RST, OUTPUT);
+    //  pinMode(LED_BUILTIN, OUTPUT);
+
+    // Resets the 4017
+    digitalWrite(a4017_RST, HIGH);
+    delay(1);
+    digitalWrite(a4017_RST, LOW);
+
+    // Initiates serial communication
+    Serial.begin(115200);
+    Serial.write("READY");
+
+    // Set the shift register reset pin
+    digitalWrite(SHIFT_CLR, HIGH);
+
+    // Time keeping
+    Serial.flush();
+}
+
+void clearReg() {
+    // Sends a pulse to the clear pin on the shift registers
+    digitalWrite(SHIFT_CLR, LOW);
+    delayMicroseconds(1);
+    digitalWrite(SHIFT_CLR, HIGH);
+}
+
+void nextColumb() {
+    // increments 4017 clock pin
+    digitalWrite(a4017_CLK, HIGH);
+    delayMicroseconds(1);
+    digitalWrite(a4017_CLK, LOW);
+    if (++colCount == 8) {
+        colCount = 0;
+        digitalWrite(a4017_RST, HIGH);
+        delayMicroseconds(7);
+        digitalWrite(a4017_RST, LOW);
+    }
+}
+
+// short amountShifted = 0;
+
+void ShiftOutBit(int value) {
+    // Sends the value to the shift registers and sends a clock pulse,
+    // inverted because I used PNP trannies
+    //  if (++amountShifted == 24) {
+    //      //   Serial.println("j");
+    //      amountShifted = 0;
+    //  }
+    digitalWrite(SHIFT_CLK, LOW);
+    digitalWrite(SHIFT_SER, !value);
+    delayMicroseconds(4);
+    digitalWrite(SHIFT_CLK, HIGH);
+    totalShifted += 1;
+    if (totalShifted >= 24) {
+        totalShifted = 0;
+        nextColumb();
+    }
+    Serial.flush();
+}
+
+void displayOnTime(short delay = 20) {
+    digitalWrite(DISPL_RST, HIGH);
+    delayMicroseconds(delay);
+    digitalWrite(DISPL_RST, LOW);
+}
+
+// String emulateInput() {
+//     String input = "";
+
+//     for (int i = 0; 0 < 24 + 1; ++i) {
+//         short rand = random(0, 2);
+//         input += rand;
+//     }
+//     Serial.print("Random String is: ");
+//     Serial.println(input);
+//     return input;
+// }
+
+void updateDisplay() {
+    for (int col = 0; col < 8; col++) {
+        for (int row = 0; row < 3; row++) {
+            // ShiftOutBit(loadBuffer[col][row]);
+            shiftOut(SHIFT_SER, SHIFT_CLK, MSBFIRST, ~loadBuffer[col][row]);
+        }
+        displayOnTime(5);
+        clearReg();
+        nextColumb();
+        // delay(1);
+    }
+    // Set display on-time duration
+    //  displayOnTime(10);
+    //  clearReg();
+    //  nextColumb();
+}
+
+void randomFrame() {
+    //  int test = random(0, 25);
+    for (short i = 0; i < 8; ++i) {
+        for (short j = 0; j < 24; ++j) {
+            // (++test % 5 == 0) ? loadBuffer[j][i] = 1 : loadBuffer[j][i] = 0;
+            loadBuffer[j][i] = random(0, 2);
+            // Serial.println(loadBuffer[j][i]);
+            // frameBuffer[j][i] = 1;
+        }
+    }
+}
+
+void readFromSerial() {
+    Serial.println("In readFromSerial");
+    //  while (Serial.available() > 0) {
+    for (int i = 0; i < 3; ++i) {
+        int currentByte = Serial.read();
+        Serial.print("incoming byte: ");
+        Serial.println(currentByte, BIN);
+        totalShifted += 1;
+        loadBuffer[colCount++][i] = currentByte;
+        // shiftOut(dataPin, clockPin, bitOrder, value)
+        //   shiftOut(SHIFT_SER, SHIFT_CLK, MSBFIRST, ~currentByte);
+        if (totalShifted == 3) {
+            // displayOnTime(20);
+            // nextColumb();
+            totalShifted = 0;
+        }
+        if (colCount == 8) {
+            colCount = 0;
+        }
+    }
+    Serial.flush();
+}
+// 110110000000001100000101
+
+unsigned long curTime = 0;
+unsigned long lastTimeGen = 0;
+unsigned long lastTimeUpdate = 0;
+
+const int frameGenWait = 1000;
+const int updateWait = 8;
+int limiter = 0;
+void loop() {
+    curTime = millis();
+
+    if ((curTime - lastTimeUpdate) >= updateWait) {
+        lastTimeUpdate = curTime;
+        updateDisplay();
+    }
+
+    //  // updateDisplay();
+
+    //  if ((curTime - lastTimeGen) >= frameGenWait) {
+    //      lastTimeGen = curTime;
+    //      randomFrame();
+    //  }
+    if (Serial.available() >= 3) {
+        readFromSerial();
+    }
+}

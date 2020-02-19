@@ -1,0 +1,22 @@
+The LED rows are driven by shift registers, 
+the clock pin is 6, 
+the data pin is 4, 
+The clear pin is 5.
+Theres 8 LEDs per row, RGB, so 8x3 (24) values 
+that need to be shifted in
+
+You switch from the first collumn to the next with a pulse 
+to the decade counter (4017). 
+The clock pin is 8 and the reset pin is 7
+
+You should reset the 4017 in the beginning to
+make sure its on the correct collumn, 
+as it starts on a random one
+
+I think the display reset pin blanks it? 
+I genuinely have no idea what it does. 
+Its pin 9, whatever it is
+
+Questions can be emailed to {PLACEHOLDER}
+
+This has been my TED talk, thank you

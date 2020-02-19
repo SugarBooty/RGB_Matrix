@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/home/zach/.arduino15/packages/esp8266/tools/**",
+                "/home/zach/.arduino15/packages/esp8266/hardware/esp8266/2.6.3/**",
+                "${workspaceFolder}/**",
+                "/home/zach/.arduino/hardware/arduino/avr/**",
+                "/home/zach/.arduino/hardware/arduino/avr/libraries/**",
+                "/home/zach/.arduino/tools/**",
+                "/home/zach/.arduino/hardware/arduino/tools/**",
+                "/home/zach/.arduino/hardware/arduino/avr/cores/arduino/**",
+                "/home/zach/.arduino/hardware/tools/avr/avr/**",
+                "/home/zach/.arduino15/packages/esp8266/hardware/esp8266/2.6.3/**"
+            ],
+            "forcedInclude": [],
+            "defines": [
+                "USBCON"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}
